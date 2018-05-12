@@ -18,7 +18,7 @@ MPU6050 mpu;
 double z,zz;
 
 int e,a,aT,b,bT,f,fT,g,gT,prevError,E1,E2;
-int setpoint = 0,initVel = 70;
+int setpoint = 0,angleSetpoint = 0,initVel = 70;
 
 unsigned int MR,ML;
 unsigned long timer = 0;
@@ -60,19 +60,19 @@ void loop()
    Vector norm = mpu.readNormalizeGyro();
    gyaw = gyaw + norm.ZAxis * timeStep;
    
-   z = (2*pi)*((gyaw*5.25)/360);
-   zz = gyaw/52;
+   z = gyaw*3.2;
    
    delay((timeStep*1000) - (millis() - timer));
    
    for(int x = 0;x < 10; x++)
    {
-      zz += zz;
+      zz += error(0,z,angleSetpoint);
    } 
    zz = zz/10;
    
    Serial.print("Angle: ");
-   Serial.println(zz);
+   Serial.print(zz);
+   Serial.print("\t | \t ");
    
    if (zz > 0)
   {
