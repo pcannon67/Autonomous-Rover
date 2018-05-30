@@ -1,5 +1,17 @@
+//--------------------------------------------------------------------------------------------------------------------
+/*
+ *                                            CLASS HEADER FILES
+ */
+//--------------------------------------------------------------------------------------------------------------------
+
 #include <NewPing.h>
 #include <MPU6050.h>
+
+//--------------------------------------------------------------------------------------------------------------------
+/*
+ *                                         FIXED CONSTANTS DEFINITIONS
+ */
+//--------------------------------------------------------------------------------------------------------------------
 
 #define TRIGGER_PIN  2  // Arduino pin tied to trigger pin on the ultrasonic sensor.
 #define ECHO_PIN   4 // Arduino pin tied to echo pin on the ultrasonic sensor.
@@ -7,34 +19,44 @@
 #define ECHO_PIN2     8  // Arduino pin tied to echo pin on the ultrasonic sensor.
 #define MAX_DISTANCE 500 // Maximum distance ping (in centimeters). Maximum sensor distance is rated at 400-500cm.
 
+//--------------------------------------------------------------------------------------------------------------------
+/*
+ *                                         CLASS OBJECT INSTANTIATIONS
+ */
+//--------------------------------------------------------------------------------------------------------------------
+
 NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE); // NewPing setup of pins and maximum distance.
 NewPing sonar2(TRIGGER_PIN2, ECHO_PIN2, MAX_DISTANCE); // NewPing setup of pins and maximum distance.
 MPU6050 mpu;
 
+//---------------------------------------------------------------------------------------------------------------
 /*
- *                       VARIABLE/CONSTANT DEFINITIONS
+ *                                    VARIABLE/CONSTANT DEFINITIONS
  */
+//---------------------------------------------------------------------------------------------------------------
  
-double z,zz;
+double z = 0,zz = 0;
 
-int e,a,aT,b,bT,f,fT,g,gT,prevError,E1,E2;
-int setpoint = 0,angleSetpoint = 0,initVel = 70;
+int e = 0,a  = 0,aT  = 0,b  = 0,bT  = 0;
+int f  = 0,fT  = 0,g  = 0,gT  = 0,prevError  = 0,E1 = 0,E2  = 0;
+int PositionSetpoint = 0,angleSetpoint = 0,initVel = 80;
 
 unsigned int MR,ML;
 unsigned long timer = 0;
 
 float timeStep = 0.01, gyaw = 0,pi = 3.143;
 
+//--------------------------------------------------------------------------------------------------------------
 /*
- *                       INITIALISE COMPONENTS
+ *                                   COMPONENT INITIALISATION LOOP 
  */
- 
+//--------------------------------------------------------------------------------------------------------------
+
 void setup() 
 {
     Serial.begin(9600);
     while(!mpu.begin(MPU6050_SCALE_2000DPS, MPU6050_RANGE_2G))
     {
-      Serial.println("Could not find a valid MPU6050 sensor, check wiring!");
       delay(500);
     }
   
@@ -48,47 +70,52 @@ void setup()
     delay(2000);
 }
 
+//------------------------------------------------------------------------------------------------------------------
 /*
- *                      MAIN LOOP
+ *                                           MAIN CONTROL LOOP
  */
+//------------------------------------------------------------------------------------------------------------------
  
-double prop = 5.2772,inte = 2.8537,deriv = 0;
+                      double prop = 5.3,inte = 2.8,deriv = 3;   // PID GAINS
 
 void loop()
 { 
-   timer = millis();
-   Vector norm = mpu.readNormalizeGyro();
-   gyaw = gyaw + norm.ZAxis * timeStep;
+  
+   ML = 0;
+   MR = 0;
    
-   z = gyaw*3.2;
+   timer = millis();
+   Vector norm = mpu.readNormalizeGyro();            // read in gyro data as a 3x1 vector
+   gyaw = gyaw + norm.ZAxis * timeStep;              // calculate angle from angular velociy
+   z = gyaw*3.2;                                     // scale angle data
    
    delay((timeStep*1000) - (millis() - timer));
    
    for(int x = 0;x < 10; x++)
    {
-      zz += error(0,z,angleSetpoint);
+      zz += error(0,z,angleSetpoint);              // calculate error and run it through a 10 point averaging filter
    } 
    zz = zz/10;
    
-   Serial.print("Angle: ");
-   Serial.print(zz);
-   Serial.print("\t | \t ");
+   //Serial.print("Angle: ");
+   //Serial.println(zz);
+   //Serial.print("\t | \t ");
    
-   if (zz > 0)
+  if (zz > 0)                    //if angle > 0....
   {
     f = zz;
-    fT += f;
-    MR = pid(f,fT,prop,inte,deriv);
-    RunMotors(9,MR/200,initVel);
-    RunMotors(10,-MR/200,initVel);
+    fT += f;                            // calculate sum error (for integral)
+    MR = pid(f,fT,prop,inte,deriv);     // calculate PID gain
+    RunMotors(9,MR/200,initVel);          
+    RunMotors(10,-MR/200,initVel);      // run motors
   }
-  else if (zz < 0)
+  else if (zz < 0)                //if angle < 0....
   {
     g = -1*zz;
-    gT += g;
-    ML = pid(g,gT,prop,inte,deriv);
+    gT += g;                            // calculate sum error (for integral)
+    ML = pid(g,gT,prop,inte,deriv);     // calculate PID gain
     RunMotors(10,ML/200,initVel);
-    RunMotors(9,-ML/200,initVel);
+    RunMotors(9,-ML/200,initVel);       // run motors
   }
   else
   {
@@ -97,35 +124,32 @@ void loop()
   }
  
    E1 = sonar.ping_cm();
-   E2 = sonar2.ping_cm();
+   E2 = sonar2.ping_cm();                        // read in distance from untrasonic sensors
    
    for(int x = 0;x < 10; x++)
    {
-      e += error(E2,E1,setpoint);
+      e += error(E2,E1,PositionSetpoint);       // calculate error and run it through a 10 point averaging filter       
    } 
    e = e/10;
 
-   Serial.print("Error: ");
-   Serial.println(e);
-   
-   ML = 0;
-   MR = 0;
+   //Serial.print("Error: ");
+   //Serial.println(e);
   
-   if (e > 0)
+   if (e > 0)                 //if angle > 0....
    {
      a = e;
-     aT += a;
-     MR = pid(a,aT,prop,inte,deriv);
-     RunMotors(9,MR/200,initVel);
-     RunMotors(10,-MR/200,initVel);
+     aT += a;                          // calculate sum error (for integral)
+     MR = pid(a,aT,prop,inte,deriv);   // calculate PID gain
+     RunMotors(9,MR/100,initVel);
+     RunMotors(10,-MR/100,initVel);     // run motors
    }
-   else if (e < 0)
+   else if (e < 0)          //if angle < 0....
    {
      b = -1*e;
-     bT += b;
-     ML = pid(b,bT,prop,inte,deriv);
-     RunMotors(10,ML/200,initVel);
-     RunMotors(9,-ML/200,initVel);
+     bT += b;                         // calculate sum error (for integral)
+     ML = pid(b,bT,prop,inte,deriv);  // calculate PID gain
+     RunMotors(10,ML/100,initVel);     
+     RunMotors(9,-ML/100,initVel);     // run motors
    }
    else
    {
@@ -134,10 +158,16 @@ void loop()
    }
 }
 
+//-------------------------------------------------------------------------------------------------------------
 /*
- *                                FUNCTIONS
+ *                                                 FUNCTIONS
  */
- 
+//-------------------------------------------------------------------------------------------------------------
+
+/*
+ *                                   CALCULATING THE ERROR FOR BOTH POSITION AND ANGLE                     
+ */
+  
 int error(int a, int b, int c)
 {
   int d;
@@ -145,13 +175,20 @@ int error(int a, int b, int c)
   return(d);
 }
 
+/*
+ *                                      CALCULATING THE PID GAIN VALUES
+ */
+ 
 double pid(int InputError,int InputErrorTotal,double Kp,double Ki,double Kd)
 {
-  double p,i,d,cont;
+  double p=0,i=0,d=0,cont=0;
+  double N=10,NT;
+  NT += N;      //Practical Derivitive Term components(Anti-High Frequency Noise Sensitvity)
+  double ad = Kd/(Kd+NT),bd = Kp*N*ad;
   
   p = InputError*Kp;
   i = InputErrorTotal*Ki;
-  d = Kd*(InputError-prevError);
+  d = ad*(d-bd)*(InputError-prevError);
   
   prevError = InputError;
   
@@ -159,16 +196,20 @@ double pid(int InputError,int InputErrorTotal,double Kp,double Ki,double Kd)
   return(cont);
 }
 
+/*
+ *                                    CONTROLLING THE MOTORS
+ */
+ 
 void RunMotors(int Motor,int Gain,int Normal)
 {
   int x = 0;
   if((Gain+Normal) > 255)
   {
-    x = 255;
+    x = 255;                      // Actuator Limit Saturation 
   }
   else
   {
-    x = Gain+Normal;
+    x = Gain+Normal;              // add the PID gain to the initial velocity
   }
   analogWrite(Motor,x);
 }
