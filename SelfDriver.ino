@@ -107,16 +107,16 @@ void loop()
     f = zz;
     fT += f;                            // calculate sum error (for integral)
     MR = pid(f,fT,prop,inte,deriv,LimitIgain,LimitDgain);     // calculate PID gain
-    RunMotors(9,MR/200,initVel);          
-    RunMotors(10,-MR/200,initVel);      // run motors
+    RunMotors(9,MR/500,initVel);          
+    RunMotors(10,-MR/500,initVel);      // run motors
   }
   else if (zz < 0)                //if angle < 0....
   {
     g = -1*zz;
     gT += g;                            // calculate sum error (for integral)
     ML = pid(g,gT,prop,inte,deriv,LimitIgain,LimitDgain);     // calculate PID gain
-    RunMotors(10,ML/200,initVel);
-    RunMotors(9,-ML/200,initVel);       // run motors
+    RunMotors(10,ML/500,initVel);
+    RunMotors(9,-ML/500,initVel);       // run motors
   }
   else
   {
@@ -141,16 +141,16 @@ void loop()
      a = e;
      aT += a;                          // calculate sum error (for integral)
      MR = pid(a,aT,prop,inte,deriv,LimitIgain,LimitDgain);   // calculate PID gain
-     RunMotors(9,MR/100,initVel);
-     RunMotors(10,-MR/100,initVel);     // run motors
+     RunMotors(9,MR/250,initVel);
+     RunMotors(10,-MR/250,initVel);     // run motors
    }
    else if (e < 0)          //if angle < 0....
    {
      b = -1*e;
      bT += b;                         // calculate sum error (for integral)
      ML = pid(b,bT,prop,inte,deriv,LimitIgain,LimitDgain);  // calculate PID gain
-     RunMotors(10,ML/100,initVel);     
-     RunMotors(9,-ML/100,initVel);     // run motors
+     RunMotors(10,ML/250,initVel);     
+     RunMotors(9,-ML/250,initVel);     // run motors
    }
    else
    {
@@ -183,7 +183,7 @@ int error(int a, int b, int c)
 double pid(int InputError,int InputErrorTotal,double Kp,double Ki,double Kd,bool Ilim,bool Dlim)
 {
   double p=0,i=0,d=0,cont=0;
-  double N=20,NT;
+  double N=22,NT;
   NT += N;      //Practical Derivitive Term components(Anti-High Frequency Noise Sensitvity)
   double ad = Kd/(Kd+NT),bd = Kp*N*ad;
   
@@ -191,7 +191,7 @@ double pid(int InputError,int InputErrorTotal,double Kp,double Ki,double Kd,bool
   
   if (Ilim == true)
   {
-     i = (InputErrorTotal*Ki) + (20*(255 - cont));
+     i = (InputErrorTotal*Ki) + (35*(255 - cont));
   }
   else
   {
