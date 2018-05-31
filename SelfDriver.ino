@@ -46,6 +46,7 @@ unsigned long timer = 0;
 
 float timeStep = 0.01, gyaw = 0,pi = 3.143;
 
+bool LimitDgain = true,LimitIgain = true;
 //--------------------------------------------------------------------------------------------------------------
 /*
  *                                   COMPONENT INITIALISATION LOOP 
@@ -105,7 +106,7 @@ void loop()
   {
     f = zz;
     fT += f;                            // calculate sum error (for integral)
-    MR = pid(f,fT,prop,inte,deriv);     // calculate PID gain
+    MR = pid(f,fT,prop,inte,deriv,LimitIgain,LimitDgain);     // calculate PID gain
     RunMotors(9,MR/200,initVel);          
     RunMotors(10,-MR/200,initVel);      // run motors
   }
@@ -113,7 +114,7 @@ void loop()
   {
     g = -1*zz;
     gT += g;                            // calculate sum error (for integral)
-    ML = pid(g,gT,prop,inte,deriv);     // calculate PID gain
+    ML = pid(g,gT,prop,inte,deriv,LimitIgain,LimitDgain);     // calculate PID gain
     RunMotors(10,ML/200,initVel);
     RunMotors(9,-ML/200,initVel);       // run motors
   }
@@ -139,7 +140,7 @@ void loop()
    {
      a = e;
      aT += a;                          // calculate sum error (for integral)
-     MR = pid(a,aT,prop,inte,deriv);   // calculate PID gain
+     MR = pid(a,aT,prop,inte,deriv,LimitIgain,LimitDgain);   // calculate PID gain
      RunMotors(9,MR/100,initVel);
      RunMotors(10,-MR/100,initVel);     // run motors
    }
@@ -147,7 +148,7 @@ void loop()
    {
      b = -1*e;
      bT += b;                         // calculate sum error (for integral)
-     ML = pid(b,bT,prop,inte,deriv);  // calculate PID gain
+     ML = pid(b,bT,prop,inte,deriv,LimitIgain,LimitDgain);  // calculate PID gain
      RunMotors(10,ML/100,initVel);     
      RunMotors(9,-ML/100,initVel);     // run motors
    }
@@ -179,17 +180,33 @@ int error(int a, int b, int c)
  *                                      CALCULATING THE PID GAIN VALUES
  */
  
-double pid(int InputError,int InputErrorTotal,double Kp,double Ki,double Kd)
+double pid(int InputError,int InputErrorTotal,double Kp,double Ki,double Kd,bool Ilim,bool Dlim)
 {
   double p=0,i=0,d=0,cont=0;
-  double N=10,NT;
+  double N=20,NT;
   NT += N;      //Practical Derivitive Term components(Anti-High Frequency Noise Sensitvity)
   double ad = Kd/(Kd+NT),bd = Kp*N*ad;
   
   p = InputError*Kp;
-  i = InputErrorTotal*Ki;
-  d = ad*(d-bd)*(InputError-prevError);
   
+  if (Ilim == true)
+  {
+     i = (InputErrorTotal*Ki) + (20*(255 - cont));
+  }
+  else
+  {
+    i = InputErrorTotal*Ki;
+  }
+  
+  if (Dlim == true)
+  {
+     d = ad*(d-bd)*(InputError-prevError);
+  }
+  else
+  {
+     d = Kd*(InputError-prevError);
+  }
+ 
   prevError = InputError;
   
   cont = p + i + d;
