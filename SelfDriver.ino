@@ -14,10 +14,10 @@
 //--------------------------------------------------------------------------------------------------------------------
 
 #define TRIGGER_PIN  2  // Arduino pin tied to trigger pin on the ultrasonic sensor.
-#define ECHO_PIN   4 // Arduino pin tied to echo pin on the ultrasonic sensor.
+#define ECHO_PIN   3 // Arduino pin tied to echo pin on the ultrasonic sensor.
 #define TRIGGER_PIN2  7  // Arduino pin tied to trigger pin on the ultrasonic sensor.
 #define ECHO_PIN2     8  // Arduino pin tied to echo pin on the ultrasonic sensor.
-#define MAX_DISTANCE 400 // Maximum distance ping (in centimeters). Maximum sensor distance is rated at 400-500cm.
+#define MAX_DISTANCE 500 // Maximum distance ping (in centimeters). Maximum sensor distance is rated at 400-500cm.
 
 //--------------------------------------------------------------------------------------------------------------------
 /*
@@ -37,17 +37,17 @@ MPU6050 mpu;
  
 double z = 0,zz = 0;
 
-int e = 0,a  = 0,aT  = 0,b  = 0,bT  = 0,N = 20,NT;
+int e = 0,a  = 0,aT  = 0,b  = 0,bT  = 0,N = 20,NT = 0;
 int f  = 0,fT  = 0,g  = 0,gT  = 0,prevError  = 0,E1 = 0,E2  = 0;
-int PositionSetpoint = 0,angleSetpoint = 0,initVel = 80;
-int PosLimit = 200, AngLimit = 500;
+int PositionSetpoint = 0,angleSetpoint = 0,initVel = 60;
+int PosLimit = 1, AngLimit = 1;
 
-unsigned int MR,ML;
+unsigned int ML,MR;
 unsigned long timer = 0;
 
 float timeStep = 0.01, gyaw = 0,pi = 3.143;
 
-bool LimitDgain = true,LimitIgain = true;
+bool LimitDgain = 1,LimitIgain = 1;
 
 //--------------------------------------------------------------------------------------------------------------
 /*
@@ -71,6 +71,10 @@ void setup()
     pinMode(6, OUTPUT);
     pinMode(9, OUTPUT);
     delay(2000);
+    
+    ML = 0;
+    MR = 0;
+   
 }
 
 //------------------------------------------------------------------------------------------------------------------
@@ -78,30 +82,37 @@ void setup()
  *                                           MAIN CONTROL LOOP
  */
 //------------------------------------------------------------------------------------------------------------------
- 
-                      double prop = 5.3,inte = 2.9,deriv = 1;   // PID GAINS
-                      //double prop = 615.5,inte = 30.8,deriv = 5;
 
+                                        // PID GAINS
+                      //double prop = 5.3,inte = 2.9,deriv = 1;       // Original System model with initial PI
+                      //double prop = 615.5,inte = 30.8,deriv = 5;    // Modified Original System With initial PI
+                      double prop = 2,inte = 288,deriv = 0.007;       // New Model With PID
+                     // double prop = 1.22,inte = 43.6,deriv = 0.003;       // New Model With Matlab PID Tuner
+                     
 void loop()
-{ 
-  
-   ML = 0;
-   MR = 0;
-   
-   
-   
+{  
    timer = millis();
+   
    Vector norm = mpu.readNormalizeGyro();            // read in gyro data as a 3x1 vector
    gyaw = gyaw + norm.ZAxis * timeStep;              // calculate angle from angular velociy
    z = gyaw*3.2;                                     // scale angle data
    
    delay((timeStep*1000) - (millis() - timer));
    
+   E1 = sonar.ping_cm();
+   E2 = sonar2.ping_cm();                        // read in distance from untrasonic sensors
+   
    for(int x = 0;x < 10; x++)
    {
       zz += error(0,z,angleSetpoint);              // calculate error and run it through a 10 point averaging filter
    } 
    zz = zz/10;
+   
+   for(int x = 0;x < 10; x++)
+   {
+      e += error(E2,E1,PositionSetpoint);       // calculate error and run it through a 10 point averaging filter       
+   } 
+   e = e/10;
    
    //Serial.print("Angle: ");
    //Serial.println(zz);
@@ -130,15 +141,6 @@ void loop()
        RunMotors(10,0,initVel);
        RunMotors(9,0,initVel);
    }
- 
-   E1 = sonar.ping_cm();
-   E2 = sonar2.ping_cm();                        // read in distance from untrasonic sensors
-   
-   for(int x = 0;x < 10; x++)
-   {
-      e += error(E2,E1,PositionSetpoint);       // calculate error and run it through a 10 point averaging filter       
-   } 
-   e = e/10;
 
    //Serial.print("Error: ");
    //Serial.println(e);
@@ -199,16 +201,16 @@ double pid(int InputError,int InputErrorTotal,double Kp,double Ki,double Kd,bool
   
     if (Ilim == true)
     {
-       i = (InputErrorTotal*Ki) + (30*(255 - cont));
+       i = i + (InputErrorTotal*Ki) + (30*(255 - cont));
     }
     else
     {
-       i = InputErrorTotal*Ki;
+       i = i + InputErrorTotal*Ki;
     }
   
     if (Dlim == true)
     {
-       d = ad*(d-bd)*(InputError-prevError);
+       d = ad*d - (bd*(InputError-prevError));
     }
     else
     {
