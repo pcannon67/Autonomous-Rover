@@ -36,10 +36,11 @@ MPU6050 mpu;
 //---------------------------------------------------------------------------------------------------------------
  
 double z = 0,zz = 0;
+double p=0,i=0,d=0,cont=0;
 
-int e = 0,a  = 0,aT  = 0,b  = 0,bT  = 0,N = 20,NT = 0;
+int e = 0,a  = 0,aT  = 0,b  = 0,bT  = 0,N = 1,NT = 0;
 int f  = 0,fT  = 0,g  = 0,gT  = 0,prevError  = 0,E1 = 0,E2  = 0;
-int PositionSetpoint = 0,angleSetpoint = 0,initVel = 60;
+int PositionSetpoint = 0,angleSetpoint = 0,initVel = 30;
 int PosLimit = 1, AngLimit = 1;
 
 unsigned int ML,MR;
@@ -84,10 +85,10 @@ void setup()
 //------------------------------------------------------------------------------------------------------------------
 
                                         // PID GAINS
-                      //double prop = 5.3,inte = 2.9,deriv = 1;       // Original System model with initial PI
+                      double prop = 5.3,inte = 2.9,deriv = 1;       // Original System model with initial PI
                       //double prop = 615.5,inte = 30.8,deriv = 5;    // Modified Original System With initial PI
-                      double prop = 2,inte = 288,deriv = 0.007;       // New Model With PID
-                     // double prop = 1.22,inte = 43.6,deriv = 0.003;       // New Model With Matlab PID Tuner
+                      //double prop = 2,inte = 288,deriv = 0.007;       // New Model With PID
+                      //double prop = 1.22,inte = 43.6,deriv = 0.003;       // New Model With Matlab PID Tuner
                      
 void loop()
 {  
@@ -95,7 +96,7 @@ void loop()
    
    Vector norm = mpu.readNormalizeGyro();            // read in gyro data as a 3x1 vector
    gyaw = gyaw + norm.ZAxis * timeStep;              // calculate angle from angular velociy
-   z = gyaw*3.2;                                     // scale angle data
+   z = gyaw*1.81;                                     // scale angle data
    
    delay((timeStep*1000) - (millis() - timer));
    
@@ -114,8 +115,8 @@ void loop()
    } 
    e = e/10;
    
-   //Serial.print("Angle: ");
-   //Serial.println(zz);
+   Serial.print("Angle: ");
+   Serial.println(zz);
    //Serial.print("\t | \t ");
    
    if (zz > 0)                    //if angle > 0....
@@ -188,14 +189,17 @@ int error(int a, int b, int c)
 }
 
 /*
- *                                      CALCULATING THE PID GAIN VALUES
+ *   CALCULATING THE PID GAIN VALUES
  */
  
 double pid(int InputError,int InputErrorTotal,double Kp,double Ki,double Kd,bool Ilim,bool Dlim,int N,int NT)
 {
-   double p=0,i=0,d=0,cont=0;
+   unsigned long timerPID = 0,timeBetFrames = 0;
+   double p,i,d,cont;
    //Practical Derivitive Term components(Anti-High Frequency Noise Sensitvity)
    double ad = Kd/(Kd+NT),bd = Kp*N*ad;
+   
+    timerPID = millis();
   
     p = InputError*Kp;
   
@@ -220,7 +224,12 @@ double pid(int InputError,int InputErrorTotal,double Kp,double Ki,double Kd,bool
     prevError = InputError;
   
     cont = p + i + d;
+    
+    timeBetFrames = millis() - timerPID;
+
     return(cont);
+    delay(timeBetFrames);
+    
 }
 
 /*
