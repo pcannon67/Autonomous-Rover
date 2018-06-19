@@ -85,9 +85,9 @@ void setup()
 //------------------------------------------------------------------------------------------------------------------
 
                                         // PID GAINS
-                      double prop = 5.3,inte = 2.9,deriv = 1;       // Original System model with initial PI
+                      // double prop = 5.3,inte = 2.9,deriv = 1;       // Original System model with initial PI
                       //double prop = 615.5,inte = 30.8,deriv = 5;    // Modified Original System With initial PI
-                      //double prop = 2,inte = 288,deriv = 0.007;       // New Model With PID
+                      double prop = 2,inte = 288,deriv = 0.007;       // New Model With PID
                       //double prop = 1.22,inte = 43.6,deriv = 0.003;       // New Model With Matlab PID Tuner
                      
 void loop()
