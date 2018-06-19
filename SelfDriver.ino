@@ -45,6 +45,7 @@ int PosLimit = 1, AngLimit = 1;
 
 unsigned int ML,MR;
 unsigned long timer = 0;
+unsigned long timerPID = 0,timeBetFrames = 0;
 
 float timeStep = 0.01, gyaw = 0,pi = 3.143;
 
@@ -194,8 +195,6 @@ int error(int a, int b, int c)
  
 double pid(int InputError,int InputErrorTotal,double Kp,double Ki,double Kd,bool Ilim,bool Dlim,int N,int NT)
 {
-   unsigned long timerPID = 0,timeBetFrames = 0;
-   double p,i,d,cont;
    //Practical Derivitive Term components(Anti-High Frequency Noise Sensitvity)
    double ad = Kd/(Kd+NT),bd = Kp*N*ad;
    
@@ -205,20 +204,20 @@ double pid(int InputError,int InputErrorTotal,double Kp,double Ki,double Kd,bool
   
     if (Ilim == true)
     {
-       i = i + (InputErrorTotal*Ki) + (30*(255 - cont));
+       i = i + (InputErrorTotal*Ki*timeBetFrames) + (30*(255 - cont));
     }
     else
     {
-       i = i + InputErrorTotal*Ki;
+       i = i + InputErrorTotal*Ki*timeBetFrames;
     }
   
     if (Dlim == true)
     {
-       d = ad*d - (bd*(InputError-prevError));
+       d = ((ad*d) - (bd*(InputError-prevError)))/timeBetFrames;
     }
     else
     {
-       d = Kd*(InputError-prevError);
+       d = (Kd*(InputError-prevError))/timeBetFrames;
     }
  
     prevError = InputError;
@@ -226,9 +225,9 @@ double pid(int InputError,int InputErrorTotal,double Kp,double Ki,double Kd,bool
     cont = p + i + d;
     
     timeBetFrames = millis() - timerPID;
-
-    return(cont);
     delay(timeBetFrames);
+    return(cont);
+    
     
 }
 
