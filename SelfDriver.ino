@@ -45,7 +45,7 @@ int PosLimit = 1, AngLimit = 1;
 
 unsigned int ML,MR;
 unsigned long timer = 0;
-unsigned long timerPID = 0,timeBetFrames = 0;
+unsigned long timeBetFrames = 0;
 
 float timeStep = 0.01, gyaw = 0,pi = 3.143;
 
@@ -88,8 +88,8 @@ void setup()
                                         // PID GAINS
                       // double prop = 5.3,inte = 2.9,deriv = 1;       // Original System model with initial PI
                       //double prop = 615.5,inte = 30.8,deriv = 5;    // Modified Original System With initial PI
-                      double prop = 2,inte = 288,deriv = 0.007;       // New Model With PID
-                      //double prop = 1.22,inte = 43.6,deriv = 0.003;       // New Model With Matlab PID Tuner
+                     double prop = 2,inte = 288,deriv = 0.007;       // New Model With PID
+                     // double prop = 1.22,inte = 43.6,deriv = 0.003;       // New Model With Matlab PID Tuner
                      
 void loop()
 {  
@@ -116,8 +116,8 @@ void loop()
    } 
    e = e/10;
    
-   Serial.print("Angle: ");
-   Serial.println(zz);
+   //Serial.print("Angle: ");
+   //Serial.println(zz);
    //Serial.print("\t | \t ");
    
    if (zz > 0)                    //if angle > 0....
@@ -125,7 +125,7 @@ void loop()
        f = zz;
        fT += f;                            // calculate sum error (for integral)
        NT += N;
-       MR = pid(f,fT,prop,inte,deriv,LimitIgain,LimitDgain,N,NT);     // calculate PID gain
+       MR = pid(f,fT,prop,inte,deriv,LimitIgain,LimitDgain,N,NT,timeBetFrames);     // calculate PID gain
        RunMotors(9,MR/AngLimit,initVel);          
        RunMotors(10,-MR/AngLimit,initVel);      // run motors
    }
@@ -134,7 +134,7 @@ void loop()
        g = -1*zz;
        gT += g;                            // calculate sum error (for integral)
        NT += N;
-       ML = pid(g,gT,prop,inte,deriv,LimitIgain,LimitDgain,N,NT);     // calculate PID gain
+       ML = pid(g,gT,prop,inte,deriv,LimitIgain,LimitDgain,N,NT,timeBetFrames);     // calculate PID gain
        RunMotors(10,ML/AngLimit,initVel);
        RunMotors(9,-ML/AngLimit,initVel);       // run motors
    }
@@ -152,7 +152,7 @@ void loop()
       a = e;
       aT += a;                          // calculate sum error (for integral)
       NT += N;
-      MR = pid(a,aT,prop,inte,deriv,LimitIgain,LimitDgain,N,NT);   // calculate PID gain
+      MR = pid(a,aT,prop,inte,deriv,LimitIgain,LimitDgain,N,NT,timeBetFrames);   // calculate PID gain
       RunMotors(9,MR/PosLimit,initVel);
       RunMotors(10,-MR/PosLimit,initVel);     // run motors
    }
@@ -161,7 +161,7 @@ void loop()
       b = -1*e;
       bT += b;                         // calculate sum error (for integral)
       NT += N;
-      ML = pid(b,bT,prop,inte,deriv,LimitIgain,LimitDgain,N,NT);  // calculate PID gain
+      ML = pid(b,bT,prop,inte,deriv,LimitIgain,LimitDgain,N,NT,timeBetFrames);  // calculate PID gain
       RunMotors(10,ML/PosLimit,initVel);     
       RunMotors(9,-ML/PosLimit,initVel);     // run motors
    }
@@ -170,6 +170,10 @@ void loop()
       RunMotors(10,0,initVel);
       RunMotors(9,0,initVel);
    }
+   
+   timeBetFrames = millis() - timer;
+   delay(timeBetFrames);
+   //Serial.println(timeBetFrames);
 }
 
 //-------------------------------------------------------------------------------------------------------------
@@ -193,22 +197,21 @@ int error(int a, int b, int c)
  *   CALCULATING THE PID GAIN VALUES
  */
  
-double pid(int InputError,int InputErrorTotal,double Kp,double Ki,double Kd,bool Ilim,bool Dlim,int N,int NT)
+double pid(int InputError,int InputErrorTotal,double Kp,double Ki,double Kd,bool Ilim,bool Dlim,int N,int NT,unsigned long timeBetFrames)
 {
    //Practical Derivitive Term components(Anti-High Frequency Noise Sensitvity)
    double ad = Kd/(Kd+NT),bd = Kp*N*ad;
-   
-    timerPID = millis();
   
     p = InputError*Kp;
   
     if (Ilim == true)
     {
-       i = i + (InputErrorTotal*Ki*timeBetFrames) + (30*(255 - cont));
+       //i = ((InputErrorTotal*Ki) + (1.5*(255 - initVel - cont)))*timeBetFrames;
+       i = InputErrorTotal*Ki*timeBetFrames;
     }
     else
     {
-       i = i + InputErrorTotal*Ki*timeBetFrames;
+       i = InputErrorTotal*Ki*timeBetFrames;
     }
   
     if (Dlim == true)
@@ -221,14 +224,25 @@ double pid(int InputError,int InputErrorTotal,double Kp,double Ki,double Kd,bool
     }
  
     prevError = InputError;
-  
+
     cont = p + i + d;
-    
-    timeBetFrames = millis() - timerPID;
-    delay(timeBetFrames);
-    return(cont);
-    
-    
+
+    if (Ilim == true && Dlim == true)
+    {
+      if (cont > 255 - initVel)
+      {
+        Serial.println("i");
+        cont = 255 - initVel;
+        return(cont);
+        Serial.println(cont);
+      }
+      else
+      {
+        Serial.println("you");
+        return(cont);
+        Serial.println(cont);
+      }
+    }
 }
 
 /*
