@@ -40,7 +40,7 @@ double p=0,i=0,d=0,cont=0;
 
 int e = 0,a  = 0,aT  = 0,b  = 0,bT  = 0,N = 1,NT = 0;
 int f  = 0,fT  = 0,g  = 0,gT  = 0,prevError  = 0,E1 = 0,E2  = 0;
-int PositionSetpoint = 0,angleSetpoint = 0,initVel = 30;
+int PositionSetpoint = 0,angleSetpoint = 0,initVel = 150;
 int PosLimit = 1, AngLimit = 1;
 
 unsigned int ML,MR;
@@ -51,6 +51,9 @@ float timeStep = 0.01, gyaw = 0,pi = 3.143;
 
 bool LimitDgain = 1,LimitIgain = 1;
 
+int Pin = A0;
+int Pin2 = A1;
+int Distance,Distance2;
 //--------------------------------------------------------------------------------------------------------------
 /*
  *                                   COMPONENT INITIALISATION LOOP 
@@ -62,6 +65,7 @@ void setup()
     Serial.begin(9600);
     while(!mpu.begin(MPU6050_SCALE_2000DPS, MPU6050_RANGE_2G))
     {
+      Serial.println("Hello");
       delay(500);
     }
   
@@ -86,18 +90,49 @@ void setup()
 //------------------------------------------------------------------------------------------------------------------
 
                                         // PID GAINS
-                      // double prop = 5.3,inte = 2.9,deriv = 1;       // Original System model with initial PI
+                       //double prop = 5.3,inte = 2.9,deriv = 1;       // Original System model with initial PI
                       //double prop = 615.5,inte = 30.8,deriv = 5;    // Modified Original System With initial PI
-                     double prop = 2,inte = 288,deriv = 0.007;       // New Model With PID
+                     //double prop = 2,inte = 288,deriv = 0.007;       // New Model With PID
+                     double prop = 30,inte = 100,deriv = 10;       // New Model With PID
                      // double prop = 1.22,inte = 43.6,deriv = 0.003;       // New Model With Matlab PID Tuner
                      
 void loop()
 {  
+  Distance = IRSensorDistance(Pin);
+  Distance2 = IRSensorDistance(Pin2);
+  int Boundary = 10;
+  
+  if((Distance == 0 || Distance > Boundary) && (Distance2 == 0 || Distance2 > Boundary))
+  {
+    MainLoop();
+  }
+  else
+  {
+    RunMotors(6,0,initVel);
+    RunMotors(9,0,initVel);
+    RunMotors(10,0,0);
+    RunMotors(11,0,0);
+    Serial.println("no working i sorry");
+  }
+}
+
+//-------------------------------------------------------------------------------------------------------------
+/*
+ *                                                 FUNCTIONS
+ */
+//-------------------------------------------------------------------------------------------------------------
+
+/*
+ *                                   CALCULATING THE ERROR FOR BOTH POSITION AND ANGLE                     
+ */
+
+void MainLoop()
+{
    timer = millis();
    
    Vector norm = mpu.readNormalizeGyro();            // read in gyro data as a 3x1 vector
    gyaw = gyaw + norm.ZAxis * timeStep;              // calculate angle from angular velociy
-   z = gyaw*1.81;                                     // scale angle data
+   z = gyaw*8;                                     // scale angle data
    
    delay((timeStep*1000) - (millis() - timer));
    
@@ -115,10 +150,6 @@ void loop()
       e += error(E2,E1,PositionSetpoint);       // calculate error and run it through a 10 point averaging filter       
    } 
    e = e/10;
-   
-   //Serial.print("Angle: ");
-   //Serial.println(zz);
-   //Serial.print("\t | \t ");
    
    if (zz > 0)                    //if angle > 0....
    {
@@ -144,8 +175,8 @@ void loop()
        RunMotors(9,0,initVel);
    }
 
-   //Serial.print("Error: ");
-   //Serial.println(e);
+   Serial.print("Error: ");
+   Serial.println(e);
   
    if (e > 0)                 //if angle > 0....
    {
@@ -175,17 +206,6 @@ void loop()
    delay(timeBetFrames);
    //Serial.println(timeBetFrames);
 }
-
-//-------------------------------------------------------------------------------------------------------------
-/*
- *                                                 FUNCTIONS
- */
-//-------------------------------------------------------------------------------------------------------------
-
-/*
- *                                   CALCULATING THE ERROR FOR BOTH POSITION AND ANGLE                     
- */
-  
 int error(int a, int b, int c)
 {
     int d;
@@ -261,5 +281,29 @@ void RunMotors(int Motor,int Gain,int Normal)
         x = Gain+Normal;              // add the PID gain to the initial velocity
     }
     analogWrite(Motor,x);
+}
+
+int IRSensorDistance(int Sensor)
+{
+  int distance = 0;
+  float sensorValue = analogRead(Sensor)*0.0048828125;
+  float IR = 0,NewIR = 0;
+  
+  for(int i = 0;i < 10;i++)
+  {
+    IR += sensorValue;
+  }
+  NewIR = IR/10;
+  
+  distance = 13*pow(NewIR,-1);
+  
+  if(distance <= 30)
+  {
+    return(distance);
+  }
+  else
+  {
+    return(0);
+  }
 }
 
