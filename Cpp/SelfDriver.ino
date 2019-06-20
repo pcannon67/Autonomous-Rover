@@ -65,7 +65,7 @@ void setup()
     Serial.begin(9600);
     while(!mpu.begin(MPU6050_SCALE_2000DPS, MPU6050_RANGE_2G))
     {
-      Serial.println("Hello");
+      Serial.println("No MPU");
       delay(500);
     }
   
@@ -74,7 +74,7 @@ void setup()
     
     pinMode(10, OUTPUT);
     pinMode(11, OUTPUT);
-    pinMode(6, OUTPUT);
+    pinMode(6, OUTPUT);   //9 -11 forwards / 6-10 backwards
     pinMode(9, OUTPUT);
     delay(2000);
     
@@ -101,7 +101,11 @@ void loop()
   Distance = IRSensorDistance(Pin);
   Distance2 = IRSensorDistance(Pin2);
   int Boundary = 10;
-  
+
+  Serial.print(Distance);
+  Serial.print("\t");
+  Serial.print(Distance2);
+  Serial.print("\t");
   if((Distance == 0 || Distance > Boundary) && (Distance2 == 0 || Distance2 > Boundary))
   {
     MainLoop();
@@ -133,9 +137,13 @@ void MainLoop()
    Vector norm = mpu.readNormalizeGyro();            // read in gyro data as a 3x1 vector
    gyaw = gyaw + norm.ZAxis * timeStep;              // calculate angle from angular velociy
    z = gyaw*8;                                     // scale angle data
-   
+
+   Serial.println(z);
    delay((timeStep*1000) - (millis() - timer));
    
+   RunMotors(9,0,255);
+   RunMotors(11,0,255);
+   /*
    E1 = sonar.ping_cm();
    E2 = sonar2.ping_cm();                        // read in distance from untrasonic sensors
    
@@ -201,11 +209,11 @@ void MainLoop()
       RunMotors(10,0,initVel);
       RunMotors(9,0,initVel);
    }
-   
+   */
    timeBetFrames = millis() - timer;
    delay(timeBetFrames);
-   //Serial.println(timeBetFrames);
 }
+
 int error(int a, int b, int c)
 {
     int d;
