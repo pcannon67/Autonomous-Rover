@@ -1,5 +1,6 @@
-int Pin = A0;
-int Pin2 = A1;
+int Pin = A0, Pin2 = A1, distance = 0;
+float sensorValue = 0, IR = 0, NewIR = 0;
+
 void setup() 
 {
   Serial.begin(9600);
@@ -15,9 +16,10 @@ void loop()
 
 int IRSensorDistance(int Sensor)
 {
-  int distance = 0;
-  float sensorValue = analogRead(Sensor)*0.0048828125;
-  float IR = 0,NewIR = 0;
+  distance = 0;
+  sensorValue = analogRead(Sensor)*0.0048828125;
+  IR = 0;
+  NewIR = 0;
   
   for(int i = 0;i < 10;i++)
   {
